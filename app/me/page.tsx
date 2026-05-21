@@ -123,7 +123,14 @@ export default function MePage() {
           </div>
         </div>
         <Heatmap data={todayCompleted} weeks={14} />
-        <div className="text-[11px] text-muted mt-3 text-center tabular-nums">
+        <div className="flex items-center justify-center gap-1.5 text-[10px] text-faint mt-2">
+          <span className="inline-block w-2.5 h-2.5 rounded-sm border border-dashed border-subtle" />
+          아직 오지 않은 날
+          <span className="mx-1">·</span>
+          <span className="inline-block w-2.5 h-2.5 rounded-sm bg-teal-100 dark:bg-teal-500/30 ring-2 ring-coral-500" />
+          오늘
+        </div>
+        <div className="text-[11px] text-muted mt-2 text-center tabular-nums">
           누적 <span className="font-extrabold text-default">{totalCorrect}</span>회 정답 · 학습 단어 {distinctWordsSeen}개
         </div>
       </section>

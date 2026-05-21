@@ -17,66 +17,110 @@ function colorClass(count: number): string {
 
 const MONTHS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
 
+const CELL = 14;          // px — cell width/height
+const GAP = 3;            // px — gap between cells/columns
+const DAY_COL_W = 20;     // px — day label column width
+const ROW_GAP = 6;        // px — gap between day-label col and grid col
+
 export default function Heatmap({ data, weeks = 14 }: Props) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const todayTs = today.getTime();
   const totalDays = weeks * 7;
   const startDow = today.getDay();
+  // Anchor the grid so that today sits in the last column.
+  // The last column spans Sun→Sat of this week; pad future days at the end.
   const start = new Date(today);
   start.setDate(today.getDate() - (totalDays - 1 - (6 - startDow)));
 
-  const cells: { date: Date; key: string; count: number }[] = [];
+  type Cell = { date: Date; key: string; count: number; future: boolean };
+  const cells: Cell[] = [];
   for (let i = 0; i < totalDays; i++) {
     const d = new Date(start);
     d.setDate(start.getDate() + i);
-    cells.push({ date: d, key: dayKey(d.getTime()), count: data[dayKey(d.getTime())] ?? 0 });
+    const k = dayKey(d.getTime());
+    cells.push({
+      date: d,
+      key: k,
+      count: data[k] ?? 0,
+      future: d.getTime() > todayTs,
+    });
   }
-  const columns: typeof cells[] = [];
+  const columns: Cell[][] = [];
   for (let w = 0; w < weeks; w++) columns.push(cells.slice(w * 7, w * 7 + 7));
 
-  // Month labels — show month number on first column of each month
-  const monthLabels = columns.map((col) => {
-    const first = col[0];
-    return { month: first.date.getMonth(), day: first.date.getDate() };
-  });
-  const labelTops: (string | null)[] = monthLabels.map((m, i) => {
-    if (i === 0) return MONTHS[m.month] + "월";
-    if (m.month !== monthLabels[i - 1].month) return MONTHS[m.month] + "월";
+  // Month label per column: show the month name on the first column whose
+  // Sunday is in a new month (relative to the previous column's Sunday).
+  const labelTops: (string | null)[] = columns.map((col, i) => {
+    if (i === 0) return MONTHS[col[0].date.getMonth()] + "월";
+    if (col[0].date.getMonth() !== columns[i - 1][0].date.getMonth())
+      return MONTHS[col[0].date.getMonth()] + "월";
     return null;
   });
 
-  const dayLabels = ["월", "수", "금"]; // sparse
-  const todayKey = dayKey(Date.now());
+  // Sparse weekday labels (월/수/금 only)
+  const dayLabel = (rowIdx: number) =>
+    rowIdx === 1 ? "월" : rowIdx === 3 ? "수" : rowIdx === 5 ? "금" : "";
 
+  const todayKey = dayKey(todayTs);
+
+  // Layout: a single flex container so day labels + month labels + cells
+  // all share the same column widths and gaps — guaranteed alignment.
   return (
-    <div>
-      <div className="flex gap-1.5 pl-7 mb-1">
-        {labelTops.map((l, i) => (
-          <div key={i} className="w-[14px] text-[9px] font-bold text-faint text-center">
-            {l ?? ""}
+    <div className="flex" style={{ gap: ROW_GAP }}>
+      {/* Left column: spacer (matching month label row height) + day labels */}
+      <div
+        className="flex flex-col text-[9px] text-faint font-bold"
+        style={{ gap: GAP, width: DAY_COL_W }}
+      >
+        <div style={{ height: 12 }} />
+        {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+          <div
+            key={i}
+            className="leading-none flex items-center justify-end pr-0.5"
+            style={{ height: CELL }}
+          >
+            {dayLabel(i)}
           </div>
         ))}
       </div>
-      <div className="flex gap-1.5">
-        <div className="flex flex-col gap-[3px] py-[1px] text-[9px] text-faint font-bold w-5">
-          {[0,1,2,3,4,5,6].map((i) => (
-            <div key={i} className="h-[14px] leading-[14px]">
-              {i === 1 ? dayLabels[0] : i === 3 ? dayLabels[1] : i === 5 ? dayLabels[2] : ""}
+
+      {/* Right side: month labels row + cells grid, sharing the same gap */}
+      <div className="flex flex-col" style={{ gap: GAP }}>
+        <div className="flex" style={{ gap: GAP, height: 12 }}>
+          {labelTops.map((l, i) => (
+            <div
+              key={i}
+              className="text-[9px] font-bold text-faint text-left leading-none"
+              style={{ width: CELL }}
+            >
+              {l ?? ""}
             </div>
           ))}
         </div>
-        <div className="flex gap-[3px]">
+        <div className="flex" style={{ gap: GAP }}>
           {columns.map((col, ci) => (
-            <div key={ci} className="flex flex-col gap-[3px]">
+            <div key={ci} className="flex flex-col" style={{ gap: GAP }}>
               {col.map((c) => {
                 const isToday = c.key === todayKey;
+                if (c.future) {
+                  return (
+                    <div
+                      key={c.key}
+                      title="아직 오지 않은 날"
+                      className="rounded-[3px] border border-dashed border-subtle"
+                      style={{ width: CELL, height: CELL }}
+                    />
+                  );
+                }
                 return (
                   <div
                     key={c.key}
-                    title={`${c.key} · ${c.count}개`}
-                    className={`w-[14px] h-[14px] rounded-[3px] ${colorClass(c.count)} ${
+                    title={`${c.key} · 정답 ${c.count}회`}
+                    className={`rounded-[3px] ${colorClass(c.count)} ${
                       isToday ? "ring-2 ring-coral-500" : ""
                     }`}
+                    style={{ width: CELL, height: CELL }}
                   />
                 );
               })}
