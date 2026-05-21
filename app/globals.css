@@ -1,0 +1,152 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Pretendard Variable for crisp modern Korean + Latin */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+/* Zen Maru Gothic for Japanese display */
+@import url("https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap");
+
+:root {
+  --font-sans: "Pretendard Variable", "Pretendard", system-ui, sans-serif;
+
+  /* Light theme */
+  --bg-base: #FAF7F2;
+  --bg-elevated: #FFFFFF;
+  --bg-subtle: #F2EDE4;
+  --text-strong: #2A241B;
+  --text-default: #3F3729;
+  --text-muted: #8A8170;
+  --text-faint: #BAB0A0;
+  --border-subtle: #E0D9CB;
+  --brand: #FF6B47;
+  --brand-soft: #FFE5DC;
+  --success: #1FAE89;
+  --success-soft: #D2F5EC;
+}
+
+.dark {
+  --bg-base: #100D08;
+  --bg-elevated: #1F1A12;
+  --bg-subtle: #2A241B;
+  --text-strong: #FAF7F2;
+  --text-default: #F2EDE4;
+  --text-muted: #BAB0A0;
+  --text-faint: #8A8170;
+  --border-subtle: #3F3729;
+  --brand: #FF8463;
+  --brand-soft: #3F1F18;
+  --success: #3FC7A5;
+  --success-soft: #143028;
+}
+
+html, body { height: 100%; }
+html { color-scheme: light dark; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-base);
+  color: var(--text-default);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button, input, textarea, select { font-family: inherit; }
+
+/* Card flip 3D */
+.card-3d { transform-style: preserve-3d; }
+.face {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.face-back { transform: rotateY(180deg); }
+
+/* Blur for hide-toggle */
+.text-blur {
+  filter: blur(9px);
+  user-select: none;
+  transition: filter 0.25s ease;
+}
+
+/* Furigana ruby */
+ruby { ruby-position: over; }
+rt {
+  font-size: 0.45em;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--border-subtle); border-radius: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { scrollbar-width: none; }
+
+/* Themed surfaces */
+.surface { background: var(--bg-elevated); }
+.surface-subtle { background: var(--bg-subtle); }
+.surface-base { background: var(--bg-base); }
+.text-strong { color: var(--text-strong); }
+.text-default { color: var(--text-default); }
+.text-muted { color: var(--text-muted); }
+.text-faint { color: var(--text-faint); }
+.border-subtle { border-color: var(--border-subtle); }
+
+/* Press effect */
+.press-down { transition: transform 80ms ease, box-shadow 80ms ease; }
+.press-down:active { transform: translateY(2px); }
+
+/* Tap haptic-feel button base */
+.btn-clay {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 800;
+  border-radius: 1rem;
+  padding: 1rem 1.25rem;
+  box-shadow:
+    0 1px 0 0 rgba(255,255,255,0.4) inset,
+    0 -3px 0 0 rgba(0,0,0,0.10) inset,
+    0 8px 18px -8px rgba(63,55,41,0.20);
+  transition: transform 90ms ease, box-shadow 90ms ease, filter 120ms ease;
+}
+.btn-clay:active {
+  transform: translateY(3px);
+  box-shadow:
+    0 1px 0 0 rgba(255,255,255,0.4) inset,
+    0 -1px 0 0 rgba(0,0,0,0.06) inset,
+    0 2px 6px -4px rgba(63,55,41,0.20);
+}
+.btn-clay:disabled {
+  opacity: 0.5;
+  filter: grayscale(0.4);
+}
+
+/* Subtle dotted divider */
+.divider-dotted {
+  background-image: radial-gradient(currentColor 1px, transparent 1px);
+  background-size: 8px 8px;
+  height: 2px;
+  opacity: 0.15;
+}
+
+/* Soft glow gradient background blobs (for hero) */
+.bg-aurora {
+  background:
+    radial-gradient(60% 60% at 20% 10%, rgba(255,200,181,0.45) 0%, transparent 60%),
+    radial-gradient(60% 60% at 90% 10%, rgba(111,220,192,0.30) 0%, transparent 55%),
+    radial-gradient(80% 80% at 50% 100%, rgba(255,225,122,0.35) 0%, transparent 60%);
+}
+.dark .bg-aurora {
+  background:
+    radial-gradient(60% 60% at 20% 10%, rgba(255,107,71,0.18) 0%, transparent 60%),
+    radial-gradient(60% 60% at 90% 10%, rgba(63,199,165,0.14) 0%, transparent 55%),
+    radial-gradient(80% 80% at 50% 100%, rgba(255,225,122,0.10) 0%, transparent 60%);
+}
+
+/* Safe area */
+.pb-safe { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.5rem); }
+.pt-safe { padding-top: env(safe-area-inset-top, 0px); }
