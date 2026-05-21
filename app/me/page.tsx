@@ -8,6 +8,9 @@ import { useAppStore, dayKey } from "@/lib/store";
 import Heatmap from "@/components/Heatmap";
 import Mochi from "@/components/Mochi";
 import { useStoreReady } from "@/components/SessionGate";
+import { N5_WORDS } from "@/lib/words";
+import type { Word } from "@/lib/words";
+import { speak } from "@/lib/tts";
 
 export default function MePage() {
   const { data: session } = useSession();
@@ -22,8 +25,19 @@ export default function MePage() {
   const dailyGoal = useAppStore((s) => s.dailyGoal());
   const todayCount = useAppStore((s) => s.todayCount());
   const weakWords = useAppStore((s) => s.weakWords);
+  const cards = useAppStore((s) => s.cards);
 
   const ready = useStoreReady();
+
+  // Resolve weak word IDs to actual Word objects, drop unknown ones,
+  // and split into "still struggling" vs "overcome" (SRS box >= 5).
+  const wordById = new Map<string, Word>(N5_WORDS.map((w) => [w.id, w]));
+  const weakEntries = Object.values(weakWords)
+    .filter((w) => w.wrongCount > 0)
+    .map((w) => ({ weak: w, word: wordById.get(w.wordId), box: cards[w.wordId]?.box ?? 0 }))
+    .filter((x) => !!x.word) as { weak: typeof weakWords[string]; word: Word; box: number }[];
+  const stillWeak = weakEntries.filter((x) => x.box < 5).sort((a, b) => b.weak.wrongCount - a.weak.wrongCount);
+  const overcome = weakEntries.filter((x) => x.box >= 5);
 
   useEffect(() => setHydrated(true), []);
 
@@ -150,29 +164,84 @@ export default function MePage() {
       {/* Weak words + streak freeze */}
       <section className="rounded-4xl surface border border-subtle p-5 shadow-card">
         <div className="flex items-center justify-between mb-3">
-          <div className="font-extrabold text-strong">약점 단어</div>
+          <div>
+            <div className="font-extrabold text-strong">약점 단어</div>
+            <div className="text-[10px] text-muted mt-0.5">
+              아직 어려운 {stillWeak.length}개
+              {overcome.length > 0 && <span className="text-teal-500 font-bold"> · 극복한 {overcome.length}개</span>}
+            </div>
+          </div>
           <div className="text-[10px] font-bold text-coral-500 bg-coral-100 dark:bg-coral-500/15 px-2 py-1 rounded-full">
             ❄️ 스트릭 프리즈 {streakFreezeCount}개
           </div>
         </div>
-        {Object.keys(weakWords).length === 0 ? (
+
+        {stillWeak.length === 0 && overcome.length === 0 ? (
           <div className="text-[11px] text-muted text-center py-4">
             아직 약점 단어가 없어요. 멋져요! 🌱
           </div>
         ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {Object.values(weakWords)
-              .sort((a, b) => b.wrongCount - a.wrongCount)
-              .slice(0, 12)
-              .map((w) => (
-                <div
-                  key={w.wordId}
-                  className="px-2.5 py-1 rounded-xl bg-coral-100 dark:bg-coral-500/15 text-coral-600 dark:text-coral-300 text-[11px] font-bold"
-                >
-                  {w.wordId.replace("n5-", "#")} <span className="opacity-70">×{w.wrongCount}</span>
+          <>
+            {stillWeak.length > 0 ? (
+              <div className="flex flex-col gap-1.5">
+                {stillWeak.slice(0, 8).map(({ weak, word }) => {
+                  const intensity = Math.min(3, weak.wrongCount);
+                  const tone =
+                    intensity >= 3 ? "bg-coral-500 text-white"
+                    : intensity === 2 ? "bg-coral-300 text-ink-700"
+                    : "bg-coral-100 dark:bg-coral-500/15 text-coral-700 dark:text-coral-300";
+                  return (
+                    <button
+                      key={weak.wordId}
+                      onClick={() => speak(word.kana, "ja-JP", { rate: 0.85 })}
+                      className="flex items-center gap-3 rounded-2xl surface-subtle p-2.5 press-down text-left"
+                    >
+                      <div className={`shrink-0 w-9 h-9 rounded-xl grid place-items-center font-black text-xs ${tone}`}>
+                        ×{weak.wrongCount}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline gap-2">
+                          <span className="font-display text-base font-black text-strong truncate">{word.kanji}</span>
+                          <span className="font-jp text-[11px] text-muted truncate">{word.kana}</span>
+                        </div>
+                        <div className="text-[11px] text-default truncate">{word.meaning}</div>
+                      </div>
+                      <span className="text-faint text-base">🔊</span>
+                    </button>
+                  );
+                })}
+                {stillWeak.length > 8 && (
+                  <div className="text-[10px] text-faint text-center mt-1">
+                    +{stillWeak.length - 8}개 더 (가장 많이 틀린 8개 표시 중)
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-[11px] text-muted text-center py-3">
+                현재 어려운 단어가 없어요 ✨
+              </div>
+            )}
+
+            {overcome.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-subtle">
+                <div className="text-[10px] font-bold uppercase tracking-widest text-teal-500 mb-2">극복한 단어</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {overcome.slice(0, 12).map(({ weak, word }) => (
+                    <div
+                      key={weak.wordId}
+                      className="px-2.5 py-1 rounded-xl bg-teal-100 dark:bg-teal-500/15 text-teal-700 dark:text-teal-300 text-[11px] font-bold flex items-center gap-1"
+                    >
+                      <span className="font-jp">{word.kanji}</span>
+                      <span className="opacity-60">✓</span>
+                    </div>
+                  ))}
+                  {overcome.length > 12 && (
+                    <span className="text-[10px] text-teal-500 self-center">+{overcome.length - 12}</span>
+                  )}
                 </div>
-              ))}
-          </div>
+              </div>
+            )}
+          </>
         )}
       </section>
 
