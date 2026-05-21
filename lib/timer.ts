@@ -7,28 +7,26 @@ interface UseTimerOpts {
   running: boolean;
   onTimeout?: () => void;
   tickMs?: number;
-  key?: string | number; // changing key resets the timer
+  key?: string | number; // changing key restarts the timer from `duration`
 }
 
+/**
+ * Countdown timer. When `key` or `duration` changes, or `running` flips false→true,
+ * the timer restarts from `duration`. While `running` is false the interval is paused
+ * and `remaining` freezes at its last value (good for showing time left when an
+ * answer is locked in).
+ */
 export function useTimer({ duration, running, onTimeout, tickMs = 100, key }: UseTimerOpts) {
   const [remaining, setRemaining] = useState(duration);
-  const startedAtRef = useRef<number | null>(null);
   const onTimeoutRef = useRef(onTimeout);
   onTimeoutRef.current = onTimeout;
 
   useEffect(() => {
-    setRemaining(duration);
-    startedAtRef.current = null;
-  }, [key, duration]);
-
-  useEffect(() => {
     if (!running) return;
-    if (startedAtRef.current == null) {
-      startedAtRef.current = Date.now() - (duration - remaining);
-    }
+    const start = Date.now();
+    setRemaining(duration);
     const id = setInterval(() => {
-      const elapsed = Date.now() - (startedAtRef.current ?? Date.now());
-      const rem = Math.max(0, duration - elapsed);
+      const rem = Math.max(0, duration - (Date.now() - start));
       setRemaining(rem);
       if (rem === 0) {
         clearInterval(id);
@@ -36,8 +34,7 @@ export function useTimer({ duration, running, onTimeout, tickMs = 100, key }: Us
       }
     }, tickMs);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running, key]);
+  }, [running, key, duration, tickMs]);
 
   return {
     remaining,
