@@ -26,6 +26,11 @@ export default function MePage() {
   const todayCount = useAppStore((s) => s.todayCount());
   const weakWords = useAppStore((s) => s.weakWords);
   const cards = useAppStore((s) => s.cards);
+  const bestCombo = useAppStore((s) => s.bestCombo);
+  const bestQuizScore = useAppStore((s) => s.bestQuizScore);
+  const scraps = useAppStore((s) => s.scraps);
+  const leagueState = useAppStore((s) => s.league);
+  const completedChallenges = useAppStore((s) => s.completedChallenges);
 
   const ready = useStoreReady();
 
@@ -49,10 +54,20 @@ export default function MePage() {
   const log = dailyLogs[today] ?? { newCount: 0, reviewCount: 0, wrongCount: 0 };
   const todayTotal = log.newCount + log.reviewCount;
   const accuracy = todayTotal > 0 ? Math.round(((todayTotal - log.wrongCount) / todayTotal) * 100) : 0;
-  const totalReviewed = Object.values(todayCompleted).reduce((s, v) => s + v, 0);
+  const totalCorrect = Object.values(todayCompleted).reduce((s, v) => s + v, 0);
   const activeDays = Object.values(todayCompleted).filter((v) => v > 0).length;
   const prog = level ? levelProgress(level) : { mastered: 0, total: 0, seen: 0 };
   const goalPct = Math.min(100, (todayCount / dailyGoal) * 100);
+
+  // Achievement metrics
+  const distinctWordsSeen = Object.keys(cards).length;
+  const totalMastered = Object.values(cards).filter((c) => c.box >= 5).length; // across all levels
+  const totalChallengesDone = Object.values(completedChallenges).reduce(
+    (sum, days) => sum + (days?.length ?? 0),
+    0
+  );
+  const tierRank: Record<string, number> = { BRONZE: 0, SILVER: 1, GOLD: 2, DIAMOND: 3 };
+  const isDiamond = tierRank[leagueState.tier] >= 3;
 
   return (
     <div className="flex-1 flex flex-col gap-4">
@@ -109,7 +124,7 @@ export default function MePage() {
         </div>
         <Heatmap data={todayCompleted} weeks={14} />
         <div className="text-[11px] text-muted mt-3 text-center tabular-nums">
-          누적 <span className="font-extrabold text-default">{totalReviewed}</span>개 완벽 암기
+          누적 <span className="font-extrabold text-default">{totalCorrect}</span>회 정답 · 학습 단어 {distinctWordsSeen}개
         </div>
       </section>
 
@@ -247,14 +262,38 @@ export default function MePage() {
 
       {/* Achievement chips */}
       <section className="rounded-4xl surface border border-subtle p-5 shadow-card">
-        <div className="font-extrabold text-strong mb-3">업적</div>
-        <div className="flex flex-wrap gap-2">
-          <Achievement unlocked={streak >= 1} emoji="🌱" label="첫걸음" />
-          <Achievement unlocked={streak >= 3} emoji="🔥" label="3일 연속" />
-          <Achievement unlocked={streak >= 7} emoji="🌟" label="일주일 완주" />
-          <Achievement unlocked={totalReviewed >= 50} emoji="📚" label="단어 50개" />
-          <Achievement unlocked={totalReviewed >= 100} emoji="🎓" label="단어 100개" />
-          <Achievement unlocked={prog.mastered >= 30} emoji="🏆" label="마스터 30" />
+        <div className="flex items-center justify-between mb-3">
+          <div className="font-extrabold text-strong">업적</div>
+          {(() => {
+            const all = [
+              streak >= 1, streak >= 3, streak >= 7, streak >= 30,
+              distinctWordsSeen >= 30, distinctWordsSeen >= 80,
+              totalMastered >= 10, totalMastered >= 30,
+              bestCombo >= 5, bestQuizScore >= 500,
+              totalChallengesDone >= 1, scraps.length >= 1, isDiamond,
+            ];
+            const unlocked = all.filter(Boolean).length;
+            return (
+              <div className="text-[10px] font-bold text-muted">
+                {unlocked} / {all.length} 달성
+              </div>
+            );
+          })()}
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <Achievement unlocked={streak >= 1}            emoji="🌱" label="첫걸음" hint="연속 1일" />
+          <Achievement unlocked={streak >= 3}            emoji="🔥" label="3일 연속" hint="연속 3일" />
+          <Achievement unlocked={streak >= 7}            emoji="🌟" label="일주일 완주" hint="연속 7일" />
+          <Achievement unlocked={streak >= 30}           emoji="🏅" label="한 달 마스터" hint="연속 30일" />
+          <Achievement unlocked={distinctWordsSeen >= 30} emoji="📚" label="단어 30개" hint="고유 단어 30" />
+          <Achievement unlocked={distinctWordsSeen >= 80} emoji="🎓" label="단어 80개" hint="고유 단어 80" />
+          <Achievement unlocked={totalMastered >= 10}    emoji="✨" label="마스터 10" hint="박스 5 도달 10" />
+          <Achievement unlocked={totalMastered >= 30}    emoji="🏆" label="마스터 30" hint="박스 5 도달 30" />
+          <Achievement unlocked={bestCombo >= 5}         emoji="⚡" label="콤보 5" hint="퀴즈 5연속" />
+          <Achievement unlocked={bestQuizScore >= 500}   emoji="🎯" label="퀴즈 500" hint="한판 500점" />
+          <Achievement unlocked={totalChallengesDone >= 1} emoji="💬" label="첫 챌린지" hint="실전회화 1회" />
+          <Achievement unlocked={scraps.length >= 1}     emoji="📸" label="첫 스크랩" hint="사진 단어장" />
+          <Achievement unlocked={isDiamond}              emoji="💎" label="다이아 리그" hint="최고 티어 등극" />
         </div>
       </section>
     </div>
@@ -286,17 +325,33 @@ function Mini({ label, value, unit }: { label: string; value: string; unit: stri
   );
 }
 
-function Achievement({ unlocked, emoji, label }: { unlocked: boolean; emoji: string; label: string }) {
+function Achievement({
+  unlocked,
+  emoji,
+  label,
+  hint,
+}: {
+  unlocked: boolean;
+  emoji: string;
+  label: string;
+  hint?: string;
+}) {
   return (
     <div
-      className={`rounded-2xl px-3 py-2 flex items-center gap-1.5 ${
+      title={hint}
+      className={`rounded-2xl px-2 py-2.5 flex flex-col items-center gap-0.5 text-center transition-all ${
         unlocked
-          ? "bg-coral-100 dark:bg-coral-500/15 text-coral-600 dark:text-coral-300"
+          ? "bg-coral-100 dark:bg-coral-500/15 text-coral-700 dark:text-coral-300"
           : "surface-subtle text-faint"
       }`}
     >
-      <span className={unlocked ? "" : "grayscale opacity-40"}>{emoji}</span>
-      <span className="text-[11px] font-extrabold">{label}</span>
+      <span className={`text-xl leading-none ${unlocked ? "" : "grayscale opacity-40"}`}>{emoji}</span>
+      <span className="text-[10.5px] font-extrabold leading-tight">{label}</span>
+      {hint && (
+        <span className={`text-[9px] leading-tight ${unlocked ? "opacity-70" : "opacity-50"}`}>
+          {hint}
+        </span>
+      )}
     </div>
   );
 }
