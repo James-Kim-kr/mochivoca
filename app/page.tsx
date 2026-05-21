@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { useAppStore } from "@/lib/store";
+import { useStoreReady } from "@/components/SessionGate";
 import Mochi from "@/components/Mochi";
 import { LEVEL_META, getStageCount } from "@/lib/words";
 import type { JlptLevel } from "@/lib/words";
@@ -26,6 +27,7 @@ function greeting() {
 export default function HomePage() {
   const router = useRouter();
   const { data: session } = useSession();
+  const ready = useStoreReady();
   const [hydrated, setHydrated] = useState(false);
 
   const level = useAppStore((s) => s.level);
@@ -48,16 +50,17 @@ export default function HomePage() {
   useEffect(() => setHydrated(true), []);
 
   useEffect(() => {
-    if (hydrated && !level) router.replace("/onboarding");
-  }, [hydrated, level, router]);
+    if (!hydrated || !ready) return;
+    if (!level) router.replace("/onboarding");
+  }, [hydrated, ready, level, router]);
 
   useEffect(() => {
-    if (hydrated) rolloverWeekIfNeeded();
-  }, [hydrated, rolloverWeekIfNeeded]);
+    if (hydrated && ready) rolloverWeekIfNeeded();
+  }, [hydrated, ready, rolloverWeekIfNeeded]);
 
   const g = useMemo(greeting, []);
 
-  if (!hydrated || !level) {
+  if (!hydrated || !ready || !level) {
     return (
       <div className="flex-1 grid place-items-center">
         <Mochi size={120} />

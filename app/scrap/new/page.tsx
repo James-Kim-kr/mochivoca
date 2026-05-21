@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAppStore, Scrap, ScrapItem } from "@/lib/store";
 import Mochi from "@/components/Mochi";
+import { useStoreReady } from "@/components/SessionGate";
 import type { ScrapExtractResponse } from "@/app/api/llm/scrap/route";
 
 const HINTS = [
@@ -17,12 +18,20 @@ const HINTS = [
 export default function ScrapNewPage() {
   const router = useRouter();
   const addScrap = useAppStore((s) => s.addScrap);
+  const ready = useStoreReady();
+  const [hydrated, setHydrated] = useState(false);
   const [hint, setHint] = useState<string>("menu");
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [extracted, setExtracted] = useState<ScrapExtractResponse | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => setHydrated(true), []);
+
+  if (!hydrated || !ready) {
+    return <div className="flex-1 grid place-items-center"><Mochi size={120} /></div>;
+  }
 
   const onPick = () => fileRef.current?.click();
 

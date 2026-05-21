@@ -5,12 +5,15 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { useAppStore } from "@/lib/store";
 import Mochi from "@/components/Mochi";
+import { useStoreReady } from "@/components/SessionGate";
 
 export default function DonePage() {
   const [hydrated, setHydrated] = useState(false);
+  const ready = useStoreReady();
   const streak = useAppStore((s) => s.streak);
   const todayCount = useAppStore((s) => s.todayCount());
   const totalXp = useAppStore((s) => s.totalXp);
+  const show = hydrated && ready;
 
   useEffect(() => setHydrated(true), []);
 
@@ -48,9 +51,9 @@ export default function DonePage() {
       <p className="text-muted -mt-3 text-sm">정말 잘했어요 🎉</p>
 
       <div className="grid grid-cols-3 gap-3 w-full mt-2">
-        <Stat label="연속" value={hydrated ? `${streak}` : "-"} unit="일" emoji="🔥" />
-        <Stat label="오늘 완벽" value={hydrated ? `${todayCount}` : "-"} unit="개" emoji="✨" />
-        <Stat label="총 EXP" value={hydrated ? `${totalXp}` : "-"} unit="" emoji="⭐" />
+        <Stat label="연속" value={show ? `${streak}` : "-"} unit="일" emoji="🔥" />
+        <Stat label="오늘 완벽" value={show ? `${todayCount}` : "-"} unit="개" emoji="✨" />
+        <Stat label="총 EXP" value={show ? `${totalXp}` : "-"} unit="" emoji="⭐" />
       </div>
 
       <div className="w-full flex flex-col gap-2 mt-4">

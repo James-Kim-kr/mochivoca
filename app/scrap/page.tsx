@@ -6,15 +6,17 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAppStore } from "@/lib/store";
 import Mochi from "@/components/Mochi";
 import { speak } from "@/lib/tts";
+import { useStoreReady } from "@/components/SessionGate";
 
 export default function ScrapPage() {
   const [hydrated, setHydrated] = useState(false);
+  const ready = useStoreReady();
   const scraps = useAppStore((s) => s.scraps);
   const deleteScrap = useAppStore((s) => s.deleteScrap);
   const [openId, setOpenId] = useState<string | null>(null);
 
   useEffect(() => setHydrated(true), []);
-  if (!hydrated) return <div className="flex-1 grid place-items-center"><Mochi size={120} /></div>;
+  if (!hydrated || !ready) return <div className="flex-1 grid place-items-center"><Mochi size={120} /></div>;
 
   const open = scraps.find((s) => s.id === openId);
 

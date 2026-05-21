@@ -9,6 +9,7 @@ import { buildQuiz, quizScore, QuizQuestion } from "@/lib/quiz";
 import { useTimer } from "@/lib/timer";
 import Mochi from "@/components/Mochi";
 import { speak } from "@/lib/tts";
+import { useStoreReady } from "@/components/SessionGate";
 
 const QUESTION_MS = 10_000;
 const QUESTIONS = 10;
@@ -22,6 +23,7 @@ export default function QuizPage() {
   const recordQuiz = useAppStore((s) => s.recordQuiz);
   const [phase, setPhase] = useState<Phase>("intro");
   const [hydrated, setHydrated] = useState(false);
+  const ready = useStoreReady();
 
   useEffect(() => setHydrated(true), []);
 
@@ -33,7 +35,7 @@ export default function QuizPage() {
     return buildQuiz(pool, QUESTIONS);
   }, [level, cards, phase]);
 
-  if (!hydrated) return <div className="flex-1 grid place-items-center"><Mochi size={120} /></div>;
+  if (!hydrated || !ready) return <div className="flex-1 grid place-items-center"><Mochi size={120} /></div>;
 
   if (!level) {
     return (

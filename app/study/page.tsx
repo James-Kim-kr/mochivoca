@@ -11,6 +11,7 @@ import type { Word } from "@/lib/words";
 import type { Toggles } from "@/components/Flashcard";
 import { cancelSpeech, speak, ttsAvailable, wait } from "@/lib/tts";
 import { acquireWakeLock, releaseWakeLock } from "@/lib/wakeLock";
+import { useStoreReady } from "@/components/SessionGate";
 
 export default function Page() {
   return (
@@ -26,6 +27,7 @@ function StudyPage() {
   const dayParam = params.get("day");
   const day = dayParam ? parseInt(dayParam, 10) : null;
 
+  const ready = useStoreReady();
   const [hydrated, setHydrated] = useState(false);
   const [queue, setQueue] = useState<Word[]>([]);
   const [index, setIndex] = useState(0);
@@ -48,7 +50,7 @@ function StudyPage() {
   useEffect(() => setHydrated(true), []);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || !ready) return;
     if (!level) {
       router.replace("/onboarding");
       return;
@@ -59,7 +61,7 @@ function StudyPage() {
       return;
     }
     setQueue(q);
-  }, [hydrated, level, day, getDailyQueue, getStageQueue, router]);
+  }, [hydrated, ready, level, day, getDailyQueue, getStageQueue, router]);
 
   useEffect(() => () => cancelSpeech(), []);
 

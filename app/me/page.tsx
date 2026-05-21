@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { useAppStore, dayKey } from "@/lib/store";
 import Heatmap from "@/components/Heatmap";
 import Mochi from "@/components/Mochi";
+import { useStoreReady } from "@/components/SessionGate";
 
 export default function MePage() {
   const { data: session } = useSession();
@@ -22,9 +23,11 @@ export default function MePage() {
   const todayCount = useAppStore((s) => s.todayCount());
   const weakWords = useAppStore((s) => s.weakWords);
 
+  const ready = useStoreReady();
+
   useEffect(() => setHydrated(true), []);
 
-  if (!hydrated) {
+  if (!hydrated || !ready) {
     return <div className="flex-1 grid place-items-center"><Mochi size={120} /></div>;
   }
 

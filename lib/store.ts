@@ -407,14 +407,28 @@ export const useAppStore = create<AppState>()(
   )
 );
 
-export function switchUser(userKey: string | null) {
+// Switches the persist storage scope to a per-user namespace and awaits
+// rehydration. Callers can await this to know when user-specific state
+// (level, cards, league, …) is loaded into the store.
+export async function switchUser(userKey: string | null): Promise<void> {
   if (typeof window === "undefined") return;
   const storageName = userKey ? `${STORAGE_KEY_PREFIX}:${userKey}` : STORAGE_KEY_PREFIX;
   const current = useAppStore.persist.getOptions().name;
-  if (current === storageName) return;
+  if (current === storageName) {
+    if (!useAppStore.persist.hasHydrated()) {
+      const p = useAppStore.persist.rehydrate();
+      if (p && typeof (p as Promise<void>).then === "function") await p;
+    }
+    return;
+  }
   useAppStore.persist.setOptions({ name: storageName });
-  useAppStore.persist.rehydrate();
-  useAppStore.setState({ userKey });
+  const p = useAppStore.persist.rehydrate();
+  if (p && typeof (p as Promise<void>).then === "function") await p;
+  // After rehydrate, the persisted userKey from storage will already be set.
+  // For brand-new user (empty storage), set it explicitly.
+  if (useAppStore.getState().userKey !== userKey) {
+    useAppStore.setState({ userKey });
+  }
 }
 
 export { getStageCount };

@@ -8,6 +8,7 @@ import { getStageWords } from "@/lib/words";
 import RoleplayChat from "@/components/RoleplayChat";
 import RedPenWriting from "@/components/RedPenWriting";
 import Mochi from "@/components/Mochi";
+import { useStoreReady } from "@/components/SessionGate";
 
 type Phase = "intro" | "roleplay" | "writing" | "done";
 
@@ -22,6 +23,7 @@ export default function ChallengePage() {
   const [phase, setPhase] = useState<Phase>("intro");
   const [hydrated, setHydrated] = useState(false);
   const [rpSuccess, setRpSuccess] = useState(false);
+  const ready = useStoreReady();
 
   useEffect(() => setHydrated(true), []);
 
@@ -30,13 +32,13 @@ export default function ChallengePage() {
   const writingWord = useMemo(() => words.find((w) => w.id !== rpWord?.id) ?? words[0], [words, rpWord]);
 
   useEffect(() => {
-    if (!hydrated || !level) return;
+    if (!hydrated || !ready || !level) return;
     if (!isChallengeUnlocked(level, day)) {
       router.replace("/");
     }
-  }, [hydrated, level, day, isChallengeUnlocked, router]);
+  }, [hydrated, ready, level, day, isChallengeUnlocked, router]);
 
-  if (!hydrated || !level) {
+  if (!hydrated || !ready || !level) {
     return <div className="flex-1 grid place-items-center"><Mochi size={120} /></div>;
   }
 

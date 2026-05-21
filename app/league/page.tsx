@@ -7,6 +7,7 @@ import { useAppStore, nextWeekStartTs } from "@/lib/store";
 import { generateLeague, PROMOTION_RANK, DEMOTION_MIN_RANK, tierMeta } from "@/lib/league";
 import { useCountdown } from "@/lib/timer";
 import Mochi from "@/components/Mochi";
+import { useStoreReady } from "@/components/SessionGate";
 
 export default function LeaguePage() {
   const router = useRouter();
@@ -14,11 +15,12 @@ export default function LeaguePage() {
   const league = useAppStore((s) => s.league);
   const rolloverWeekIfNeeded = useAppStore((s) => s.rolloverWeekIfNeeded);
   const [hydrated, setHydrated] = useState(false);
+  const ready = useStoreReady();
 
   useEffect(() => setHydrated(true), []);
   useEffect(() => {
-    if (hydrated) rolloverWeekIfNeeded();
-  }, [hydrated, rolloverWeekIfNeeded]);
+    if (hydrated && ready) rolloverWeekIfNeeded();
+  }, [hydrated, ready, rolloverWeekIfNeeded]);
 
   const members = useMemo(
     () => generateLeague(league.weekStart, league.tier, userKey, league.weeklyXp),
@@ -30,10 +32,9 @@ export default function LeaguePage() {
   const meta = tierMeta(league.tier);
 
   const promotionThreshold = members[PROMOTION_RANK - 1]?.exp ?? 0;
-  const demotionThreshold = members[DEMOTION_MIN_RANK - 1]?.exp ?? 0;
   const promoteDelta = Math.max(0, promotionThreshold - (me?.exp ?? 0) + 1);
 
-  if (!hydrated) return <div className="flex-1 grid place-items-center"><Mochi size={120} /></div>;
+  if (!hydrated || !ready) return <div className="flex-1 grid place-items-center"><Mochi size={120} /></div>;
 
   return (
     <div className="flex-1 flex flex-col gap-4">

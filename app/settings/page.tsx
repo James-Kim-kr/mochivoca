@@ -5,6 +5,7 @@ import { signOut, useSession } from "next-auth/react";
 import { useAppStore } from "@/lib/store";
 import { useTheme } from "@/components/ThemeProvider";
 import Mochi from "@/components/Mochi";
+import { useStoreReady } from "@/components/SessionGate";
 
 export default function SettingsPage() {
   const { data: session } = useSession();
@@ -19,9 +20,11 @@ export default function SettingsPage() {
   const setHandsFree = useAppStore((s) => s.setHandsFree);
   const resetAll = useAppStore((s) => s.resetAll);
 
+  const ready = useStoreReady();
+
   useEffect(() => setHydrated(true), []);
 
-  if (!hydrated) {
+  if (!hydrated || !ready) {
     return <div className="flex-1 grid place-items-center"><Mochi size={120} /></div>;
   }
 
