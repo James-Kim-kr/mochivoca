@@ -7,11 +7,12 @@ import { motion } from "framer-motion";
 const items = [
   { href: "/", label: "홈", icon: HomeIcon },
   { href: "/study", label: "학습", icon: StudyIcon, primary: true },
+  { href: "/league", label: "리그", icon: TrophyIcon },
   { href: "/me", label: "통계", icon: StatsIcon },
   { href: "/settings", label: "설정", icon: SettingsIcon },
 ] as const;
 
-const HIDE_ON = ["/login", "/onboarding", "/study", "/done"];
+const HIDE_ON = ["/login", "/onboarding", "/study", "/done", "/quiz"];
 
 export default function BottomNav() {
   const pathname = usePathname() ?? "";
@@ -72,6 +73,16 @@ function StudyIcon({ active }: { active: boolean }) {
     </svg>
   );
 }
+function TrophyIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.4 : 2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z" />
+      <path d="M17 5h2a2 2 0 0 1 2 2v1a3 3 0 0 1-3 3" />
+      <path d="M7 5H5a2 2 0 0 0-2 2v1a3 3 0 0 0 3 3" />
+    </svg>
+  );
+}
+
 function StatsIcon({ active }: { active: boolean }) {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.4 : 2} strokeLinecap="round" strokeLinejoin="round">

@@ -33,6 +33,59 @@ export interface WeakWord {
   lastTestedAt: number;
 }
 
+export interface ScrapItem {
+  id: string;
+  word: string;
+  reading: string;
+  meaning: string;
+  context_snippet?: string;
+  example_ja?: string;
+  example_ko?: string;
+}
+
+export interface Scrap {
+  id: string;
+  createdAt: number;
+  title: string;
+  imageDataUrl?: string;
+  items: ScrapItem[];
+}
+
+export type LeagueTier = "BRONZE" | "SILVER" | "GOLD" | "DIAMOND";
+
+export interface LeagueState {
+  tier: LeagueTier;
+  weekStart: number;
+  weeklyXp: number;
+  lastWeekXp: number;
+  lastWeekRank: number | null;
+}
+
+export const LEAGUE_TIERS: LeagueTier[] = ["BRONZE", "SILVER", "GOLD", "DIAMOND"];
+
+export function weekStartTs(ts = Date.now()): number {
+  const d = new Date(ts);
+  d.setHours(0, 0, 0, 0);
+  const dow = d.getDay();
+  const offset = dow === 0 ? 6 : dow - 1;
+  d.setDate(d.getDate() - offset);
+  return d.getTime();
+}
+
+export function nextWeekStartTs(ts = Date.now()): number {
+  return weekStartTs(ts) + 7 * 24 * 60 * 60 * 1000;
+}
+
+function defaultLeague(): LeagueState {
+  return {
+    tier: "BRONZE",
+    weekStart: weekStartTs(),
+    weeklyXp: 0,
+    lastWeekXp: 0,
+    lastWeekRank: null,
+  };
+}
+
 export interface AppState {
   userKey: string | null;
   level: JlptLevel | null;
@@ -46,6 +99,10 @@ export interface AppState {
   completedStages: Record<JlptLevel, number[]>;
   completedChallenges: Record<JlptLevel, number[]>;
   weakWords: Record<string, WeakWord>;
+  scraps: Scrap[];
+  league: LeagueState;
+  bestQuizScore: number;
+  bestCombo: number;
   handsFree: boolean;
   autoSpeak: boolean;
 
@@ -72,6 +129,15 @@ export interface AppState {
   todayCount: () => number;
   dailyGoal: () => number;
   levelProgress: (level: JlptLevel) => { mastered: number; total: number; seen: number };
+
+  addScrap: (scrap: Scrap) => void;
+  deleteScrap: (id: string) => void;
+
+  awardLeagueXp: (xp: number) => void;
+  rolloverWeekIfNeeded: () => void;
+  setLeagueTier: (tier: LeagueTier) => void;
+
+  recordQuiz: (score: number, combo: number) => void;
 }
 
 const STORAGE_KEY_PREFIX = "mochivoca-state";
@@ -95,6 +161,10 @@ export const useAppStore = create<AppState>()(
       completedStages: emptyStages(),
       completedChallenges: emptyStages(),
       weakWords: {},
+      scraps: [],
+      league: defaultLeague(),
+      bestQuizScore: 0,
+      bestCombo: 0,
       handsFree: false,
       autoSpeak: true,
 
@@ -116,6 +186,10 @@ export const useAppStore = create<AppState>()(
           completedStages: emptyStages(),
           completedChallenges: emptyStages(),
           weakWords: {},
+          scraps: [],
+          league: defaultLeague(),
+          bestQuizScore: 0,
+          bestCombo: 0,
         }),
 
       getDailyQueue: () => {
@@ -219,12 +293,15 @@ export const useAppStore = create<AppState>()(
             // mastered the weak word — keep history but mark last tested
             weakWords[wordId] = { ...weakWords[wordId], lastTestedAt: Date.now() };
           }
+          // Also drip XP into the weekly league bucket
+          const league = { ...state.league, weeklyXp: state.league.weeklyXp + earned };
           return {
             cards: { ...state.cards, [wordId]: next },
             todayCompleted,
             dailyLogs: { ...state.dailyLogs, [today]: nextLog },
             totalXp: state.totalXp + earned,
             weakWords,
+            league,
           };
         });
       },
@@ -260,6 +337,40 @@ export const useAppStore = create<AppState>()(
 
       dailyGoal: () => DAILY_NEW + DAILY_REVIEW,
 
+      addScrap: (scrap) => set((s) => ({ scraps: [scrap, ...s.scraps] })),
+      deleteScrap: (id) => set((s) => ({ scraps: s.scraps.filter((x) => x.id !== id) })),
+
+      awardLeagueXp: (xp) =>
+        set((state) => ({
+          league: { ...state.league, weeklyXp: state.league.weeklyXp + xp },
+          totalXp: state.totalXp + xp,
+        })),
+
+      rolloverWeekIfNeeded: () =>
+        set((state) => {
+          const cur = weekStartTs();
+          if (state.league.weekStart === cur) return state;
+          // Carry weeklyXp → lastWeekXp; rank/tier promotion handled by /league page
+          return {
+            league: {
+              ...state.league,
+              weekStart: cur,
+              lastWeekXp: state.league.weeklyXp,
+              weeklyXp: 0,
+            },
+          };
+        }),
+
+      setLeagueTier: (tier) => set((s) => ({ league: { ...s.league, tier } })),
+
+      recordQuiz: (score, combo) =>
+        set((state) => ({
+          bestQuizScore: Math.max(state.bestQuizScore, score),
+          bestCombo: Math.max(state.bestCombo, combo),
+          totalXp: state.totalXp + score,
+          league: { ...state.league, weeklyXp: state.league.weeklyXp + score },
+        })),
+
       levelProgress: (level) => {
         const total = getWordsByLevel(level).length;
         if (total === 0) return { mastered: 0, total: 0, seen: 0 };
@@ -278,7 +389,7 @@ export const useAppStore = create<AppState>()(
     {
       name: STORAGE_KEY_PREFIX,
       storage: createJSONStorage(() => localStorage),
-      version: 2,
+      version: 3,
       migrate: (persisted) => {
         const p = (persisted ?? {}) as Partial<AppState>;
         return {
@@ -286,6 +397,10 @@ export const useAppStore = create<AppState>()(
           streakFreezeCount: p.streakFreezeCount ?? 0,
           completedChallenges: p.completedChallenges ?? emptyStages(),
           weakWords: p.weakWords ?? {},
+          scraps: p.scraps ?? [],
+          league: p.league ?? defaultLeague(),
+          bestQuizScore: p.bestQuizScore ?? 0,
+          bestCombo: p.bestCombo ?? 0,
         } as AppState;
       },
     }

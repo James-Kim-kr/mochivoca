@@ -6,6 +6,7 @@ import type { Word } from "@/lib/words";
 import { speak, ttsAvailable } from "@/lib/tts";
 import PitchAccent from "./PitchAccent";
 import Shadowing from "./Shadowing";
+import MediaShorts from "./MediaShorts";
 
 export interface Toggles {
   kanji: boolean;
@@ -27,10 +28,12 @@ function maskKanji(text: string): string {
 export default function Flashcard({ word, toggles, autoSpeak = true }: Props) {
   const [flipped, setFlipped] = useState(false);
   const [shadowingOpen, setShadowingOpen] = useState(false);
+  const [shortsOpen, setShortsOpen] = useState(false);
 
   useEffect(() => {
     setFlipped(false);
     setShadowingOpen(false);
+    setShortsOpen(false);
   }, [word.id]);
 
   useEffect(() => {
@@ -190,8 +193,20 @@ export default function Flashcard({ word, toggles, autoSpeak = true }: Props) {
               )}
             </div>
           )}
+
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShortsOpen(true);
+            }}
+            className="mt-3 mx-auto px-3.5 py-1.5 rounded-full bg-gradient-to-r from-coral-400 to-teal-400 text-white text-[11px] font-extrabold press-down flex items-center gap-1.5"
+          >
+            ▶ 실제 쓰임새 보기
+          </button>
         </div>
       </motion.div>
+
+      <MediaShorts word={word} open={shortsOpen} onClose={() => setShortsOpen(false)} />
     </div>
   );
 }

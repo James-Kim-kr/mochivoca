@@ -9,6 +9,7 @@ import { useAppStore } from "@/lib/store";
 import Mochi from "@/components/Mochi";
 import { LEVEL_META, getStageCount } from "@/lib/words";
 import type { JlptLevel } from "@/lib/words";
+import { generateLeague, tierMeta, PROMOTION_RANK } from "@/lib/league";
 
 const LEVELS: JlptLevel[] = ["N5", "N4", "N3", "N2", "N1"];
 
@@ -39,12 +40,20 @@ export default function HomePage() {
   const isChallengeUnlocked = useAppStore((s) => s.isChallengeUnlocked);
   const isChallengeCompleted = useAppStore((s) => s.isChallengeCompleted);
   const levelProgress = useAppStore((s) => s.levelProgress);
+  const scraps = useAppStore((s) => s.scraps);
+  const userKey = useAppStore((s) => s.userKey);
+  const leagueState = useAppStore((s) => s.league);
+  const rolloverWeekIfNeeded = useAppStore((s) => s.rolloverWeekIfNeeded);
 
   useEffect(() => setHydrated(true), []);
 
   useEffect(() => {
     if (hydrated && !level) router.replace("/onboarding");
   }, [hydrated, level, router]);
+
+  useEffect(() => {
+    if (hydrated) rolloverWeekIfNeeded();
+  }, [hydrated, rolloverWeekIfNeeded]);
 
   const g = useMemo(greeting, []);
 
@@ -63,6 +72,12 @@ export default function HomePage() {
   const stageCount = getStageCount(level);
   const days = Array.from({ length: stageCount }, (_, i) => i + 1);
   const firstName = (session?.user?.name ?? "").split(" ")[0] || "친구";
+
+  // League snapshot
+  const leagueMembers = generateLeague(leagueState.weekStart, leagueState.tier, userKey, leagueState.weeklyXp);
+  const myMember = leagueMembers.find((m) => m.is_me);
+  const lMeta = tierMeta(leagueState.tier);
+  const promoteDelta = Math.max(0, (leagueMembers[PROMOTION_RANK - 1]?.exp ?? 0) - (myMember?.exp ?? 0) + 1);
 
   return (
     <div className="flex-1 flex flex-col gap-4">
@@ -122,6 +137,59 @@ export default function HomePage() {
         <MiniTile label="총 EXP" value={totalXp} unit="" emoji="⭐" />
         <MiniTile label="연속" value={streak} unit="일" emoji="🔥" />
         <MiniTile label="완벽 암기" value={levelProgress(level).mastered} unit="개" emoji="✨" />
+      </div>
+
+      {/* v1.3 — League widget */}
+      <Link
+        href="/league"
+        className="rounded-4xl surface border border-subtle p-4 shadow-card press-down flex items-center gap-3"
+      >
+        <div
+          className="w-12 h-12 rounded-2xl grid place-items-center text-2xl shrink-0"
+          style={{ background: lMeta.color + "22", border: `2px solid ${lMeta.color}` }}
+        >
+          {lMeta.emoji}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest" style={{ color: lMeta.color }}>
+              {lMeta.label} 리그
+            </span>
+            <span className="text-[10px] text-faint">·</span>
+            <span className="text-[10px] font-bold text-muted">#{myMember?.rank ?? "-"}위</span>
+          </div>
+          <div className="text-sm font-extrabold text-strong truncate mt-0.5">
+            {myMember && myMember.rank > PROMOTION_RANK
+              ? <>승급까지 <span className="text-coral-500 tabular-nums">+{promoteDelta} EXP</span></>
+              : myMember && myMember.rank <= PROMOTION_RANK
+              ? <>승급권 진입 중! 🎉</>
+              : "리그 시작하기"}
+          </div>
+          <div className="text-[10px] text-muted">주간 EXP {leagueState.weeklyXp.toLocaleString()}</div>
+        </div>
+        <div className="text-default text-lg">→</div>
+      </Link>
+
+      {/* v1.3 — Quiz + Scrap entry tiles */}
+      <div className="grid grid-cols-2 gap-3">
+        <Link
+          href="/quiz"
+          className="rounded-3xl surface border border-subtle p-4 shadow-card press-down"
+        >
+          <div className="text-2xl">⚡</div>
+          <div className="font-extrabold text-strong text-sm mt-1.5">타임어택</div>
+          <div className="text-[11px] text-muted">10초 4지선다 · 콤보 도전</div>
+        </Link>
+        <Link
+          href="/scrap"
+          className="rounded-3xl surface border border-subtle p-4 shadow-card press-down relative overflow-hidden"
+        >
+          <div className="text-2xl">📸</div>
+          <div className="font-extrabold text-strong text-sm mt-1.5">모찌 스크랩</div>
+          <div className="text-[11px] text-muted">
+            {scraps.length > 0 ? `${scraps.length}개 단어장` : "사진으로 단어 추출"}
+          </div>
+        </Link>
       </div>
 
       {/* Stage path - horizontal scroll */}
